@@ -105,7 +105,13 @@ window.ScriptEditor = function(config,$,Q)	{
 		return new Q.Promise(function(resolve,reject){
 			var a = se._checkForLink(args[0]);
 			Q.Promise.all([a]).then(function(values){
-				resolve(values[0]);
+				var retVal = "";
+				if(isNaN(parseFloat(values[0]))){
+					retVal = values[0];
+				}else{
+					retVal = parseFloat(values[0]);
+				}
+				resolve(retVal);
 			});
 		});
 	}
@@ -211,7 +217,7 @@ window.ScriptEditor = function(config,$,Q)	{
 				if(Xrm.Page.getAttribute(fieldName).getSubmitMode()==="never"){
 					Xrm.Page.getAttribute(fieldName).setSubmitMode("always");
 				}
-				Xrm.Page.getAttribute(fieldName).fireOnChange();
+				//Xrm.Page.getAttribute(fieldName).fireOnChange();
 				resolve(true);
 			});
 		});
@@ -520,7 +526,7 @@ window.ScriptEditor = function(config,$,Q)	{
 		//assign to correct event/field/button/whatever...
 		if(config.Target.FieldName === "onLoad"){	//onLoad run right away
 			se.run(0);
-		}else{	//addOnChange to Field
+		}else if(config.Target.FieldName !== "" || config.Target.FieldName !== null){	//addOnChange to Field
 			var fieldName = config.Target.FieldName || "";
 			var eventName = "addOnChange";
 			var control = Xrm.Page.ui.controls.getByName(fieldName);
