@@ -11,14 +11,31 @@ window.ScriptEditor = function(config,$,Q)	{
 		}
 	}
 	
-	var _buildServerUrl = function(args){
-		var entity = args[0];
-		var id = args[1];
+	var _buildServerUrl = function(entity,id,select,filter){
+		// var entity = args[0];
+		// var id = args[1];
+		// var property = args[2];
+		
 		var returnURL = "";
 		var clientURL = Xrm.Page.context.getClientUrl()
 		var version = Xrm.Page.context.getVersion().substring(0,3);
 		if(parseFloat(version)>=8){
 			returnURL = clientURL+"/api/data/v"+version+"/";
+			if(entity){
+				returnURL += entity.toLowerCase()+"s";
+				if(id){
+					returnURL += "("+id+")"
+					if(select){
+						returnURL += "?$select="
+						for(var i=0;i<select.length;i++){
+							returnURL += select[i];
+							if(i!=select.length-1){
+								returnURL += ",";
+							}
+						}
+					}
+				}
+			}
 		}else{
 			returnURL = clientURL+"/"
 		}
@@ -106,8 +123,69 @@ window.ScriptEditor = function(config,$,Q)	{
 			Q.Promise.all([a]).then(function(values){
 				var fieldName = values[0]
 				console.log("getting value of field: "+fieldName);
-				var val = Xrm.Page.getAttribute(fieldName).getValue() || "";
+				var val = "";
+				switch(Xrm.Page.getAttribute(fieldName).getAttributeType()){
+					case "lookup":
+						val = Xrm.Page.getAttribute(fieldName).getValue() || "";
+						if(val!==""){
+							val = val[0].name
+						}
+						break;
+					// case "datetime":
+						// val = Xrm.Page.getAttribute(fieldName).getValue() || "";
+						// if(val!==""){
+							// val = val.localeFormat();
+						// }
+						// break;
+					default:
+					val = Xrm.Page.getAttribute(fieldName).getValue() || "";
+						break;
+				}
 				resolve(val);
+			});
+		});
+	}
+	
+	/// <summary>
+	/// Gets field lookup property value in current form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0] : field name {String,Link}
+	/// @args[1] : property name {String,Link}
+	/// </param>
+	var getFormLookupValue = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			Q.Promise.all([a,b]).then(function(values){
+				var fieldName = values[0];
+				var property = values[1];
+				console.log("getting value of property: "+property+" from lookup field: "+fieldName);
+				var val = Xrm.Page.getAttribute(fieldName).getValue() || "";
+				if(val != ""){
+					if(typeof(val[0].keyValues)!=="undefined"){
+						if(typeof(val[0].keyValues)==="string"){
+							var parsedKeyValues = JSON.parse(val[0].keyValues);
+							resolve(parsedKeyValues[property]);
+						}else if(typeof(val[0].keyValues)==="object"){
+							resolve(val[0].keyValues[property]);
+						}
+					}else{
+						//rest call to get the data attribute
+						var id = val[0].id.replace(/{|}/g,"");
+						var entity = val[0].entityType;
+						retrieveSingleEA([entity,id,property]).then(function(data){
+							var result = data[property];
+							resolve(result);
+						});
+					}
+					var propertyValue = val[0]
+					//return only id
+					//resolve(val[0].id.replace(/{|}/g,"");)
+				}else{
+					resolve(val);
+				}
 			});
 		});
 	}
@@ -120,7 +198,7 @@ window.ScriptEditor = function(config,$,Q)	{
 	/// @args[1]	:	field value {String,Link}
 	/// </param>
 	//TODO: type check, value conversions
-	var setFormFieldValue = function(args){
+	var setFormFieldValue = function(args){//mohlo by mit vic parametru fireOnChange - T/F, //force set submitMode// 
 		var se = this;
 		return new Q.Promise(function(resolve,reject){
 			var a = se._checkForLink(args[0]);
@@ -130,6 +208,32 @@ window.ScriptEditor = function(config,$,Q)	{
 				var newValue = values[1];
 				console.log("setting field: "+fieldName+" to value: "+newValue);
 				Xrm.Page.getAttribute(fieldName).setValue(newValue);
+				if(Xrm.Page.getAttribute(fieldName).getSubmitMode()==="never"){
+					Xrm.Page.getAttribute(fieldName).setSubmitMode("always");
+				}
+				Xrm.Page.getAttribute(fieldName).fireOnChange();
+				resolve(true);
+			});
+		});
+	}
+	
+	/// <summary>
+	/// Sets field required level in current form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	field name {String,Link}
+	/// @args[1]	:	required level {String,Link}
+	/// </param>
+	var setFormFieldRequiredLevel = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			Q.Promise.all([a,b]).then(function(values){
+				var fieldName = values[0];
+				var requiredLevel = values[1];
+				console.log("setting field: "+fieldName+" to required level: "+requiredLevel);
+				Xrm.Page.getAttribute(fieldName).setRequiredLevel(requiredLevel);
 				resolve(true);
 			});
 		});
@@ -351,33 +455,33 @@ window.ScriptEditor = function(config,$,Q)	{
 	var retrieveSingleEA = function(args){
 		var se = this;
 		return new Q.Promise(function(resolve,reject){
-			var req = new XMLHttpRequest();
-			req.open("GET", Xrm.Page.context.getClientUrl() + "/api/data/v8.0/accounts()", true);
-			req.setRequestHeader("OData-MaxVersion", "4.0");
-			req.setRequestHeader("OData-Version", "4.0");
-			req.setRequestHeader("Accept", "application/json");
-			req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
-			req.setRequestHeader("Prefer", "odata.include-annotations=\"OData.Community.Display.V1.FormattedValue\"");
-			req.onreadystatechange = function () {
-				if (this.readyState === 4) {
-					req.onreadystatechange = null;
-					if (this.status === 200) {
-						resolve(JSON.parse(this.response));
-					}
-					else {
+			var a = _checkForLink(args[0]);
+			var b = _checkForLink(args[1]);
+			var c = _checkForLink(args[2]);
+			
+			Q.Promise.all([a,b,c]).then(function(values){
+				var entity = values[0];
+				var id = values[1];
+				var property = values[2];
+				$.ajax({
+					type: "GET",
+					contentType: "application/json; charset=utf-8",
+					datatype: "json",
+					url: _buildServerUrl(entity,id,[property]),
+					beforeSend: function (XMLHttpRequest) {
+						XMLHttpRequest.setRequestHeader("Accept", "application/json");
+					},
+					success: function (data, textStatus, XmlHttpRequest) {
+						resolve(data);
+					},
+					error: function (XmlHttpRequest, textStatus, errorObject) {
+						console.error(textStatus, errorObject);
+						alert("OData Execution Error Occurred");
 						reject(this);
 					}
-				}
-			};
-			req.send();
+				});
+			});
 		});
-	}
-	
-	var combineTheDamnData = function(args){
-		var a = this._checkForLink(args[0]);
-		var b = this._checkForLink(args[1]);
-		console.log("combining data: "+a+" with data: "+b);
-		return a+"::+::"+b;
 	}
 	
 	var runFunctionByName = function(args){
@@ -386,7 +490,7 @@ window.ScriptEditor = function(config,$,Q)	{
 		if(fcfg.length===1){
 			fcfg[0].run(0);
 		}
-		return true;
+		return new Q.Promise.resolve(true);
 	}
 	
 	/// <summary>
@@ -472,10 +576,11 @@ window.ScriptEditor = function(config,$,Q)	{
 		_generateDialog_message: _generateDialog_message,
 		_generateDialog_confirm: _generateDialog_confirm,
 		getFormFieldValue	:	getFormFieldValue,
+		getFormLookupValue	:	getFormLookupValue,
 		setFormFieldValue	:	setFormFieldValue,
+		setFormFieldRequiredLevel: setFormFieldRequiredLevel,
 		retrieveSingleEA	:	retrieveSingleEA,
 		proccesIfStatement	:	proccesIfStatement,
-		combineTheDamnData	:	combineTheDamnData,
 		runFunctionByName	:	runFunctionByName,
 		run					:	run,
 		assign				:	assign,
