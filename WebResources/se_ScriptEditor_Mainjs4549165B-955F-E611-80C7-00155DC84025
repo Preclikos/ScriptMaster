@@ -174,10 +174,28 @@ window.ScriptEditor = function(config,$,Q)	{
 						if(typeof(val[0].keyValues)==="string"){
 							var parsedKeyValues = JSON.parse(val[0].keyValues);
 							var propertyValue = parsedKeyValues[property] || parsedKeyValues[property+"_Value"];
-							resolve(propertyValue.value);
+							if(propertyValue == undefined){
+								var id = val[0].id.replace(/{|}/g,"");
+								var entity = val[0].entityType;
+								retrieveSingleEA([entity,id,property]).then(function(data){
+									var result = data[property];
+									resolve(result);
+								});
+							}else{
+								resolve(propertyValue.value);
+							}
 						}else if(typeof(val[0].keyValues)==="object"){
 							var propertyValue = val[0].keyValues[property] || val[0].keyValues[property+"_Value"];
-							resolve(propertyValue.value);
+							if(propertyValue == undefined){
+								var id = val[0].id.replace(/{|}/g,"");
+								var entity = val[0].entityType;
+								retrieveSingleEA([entity,id,property]).then(function(data){
+									var result = data[property];
+									resolve(result);
+								});
+							}else{
+								resolve(propertyValue.value);
+							}
 						}
 					}else{
 						//rest call to get the data attribute
