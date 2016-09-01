@@ -543,15 +543,17 @@ window.ScriptEditor = function(config,$,Q)	{
 		//assign to correct event/field/button/whatever...
 		if(config.Target.FieldName === "onLoad"){	//onLoad run right away
 			se.run(0);
-		}else if(config.Target.FieldName !== "" || config.Target.FieldName !== null){	//addOnChange to Field
+		}else if(config.Target.FieldName !== ""){	//addOnChange to Field
 			var fieldName = config.Target.FieldName || "";
 			var eventName = "addOnChange";
 			var control = Xrm.Page.ui.controls.getByName(fieldName);
 			var turboFormControl = Xrm.Page.getAttribute(fieldName);
 			//TODO: decide logic, other cases
-			turboFormControl[eventName](function(){
-				se.run(0);
-			});
+			if(turboFormControl != null){
+				turboFormControl[eventName](function(){
+					se.run(0);
+				});
+			}
 			//if init run is true
 			// if(config.Target.InitRun === true){
 				// se.run(0);
