@@ -25,7 +25,7 @@ window.ScriptEditor = function(config,$,Q)	{
 				returnURL += entity.toLowerCase()+"s";
 				if(id){
 					returnURL += "("+id+")"
-					if(select){
+					if(select[0]!=""){
 						returnURL += "?$select="
 						for(var i=0;i<select.length;i++){
 							returnURL += select[i];
@@ -157,54 +157,75 @@ window.ScriptEditor = function(config,$,Q)	{
 	/// </summary>
 	/// <param name="args" type="array" mayBeNull="false" optional="false" >
 	/// @args[0] : field name {String,Link}
-	/// @args[1] : property name {String,Link}
+	/// @args[1] : property/ies name {String,Link} ["propName"]|["propName1,propName2,propName3"]
+	/// @args[2] : associated lookup entity name {String,Link}
+	/// @args[3] : associated lookup property/ies name {String,Link}["propName"]|["propName1,propName2,propName3"]
 	/// </param>
 	var getFormLookupValue = function(args){
 		var se = this;
 		return new Q.Promise(function(resolve,reject){
 			var a = se._checkForLink(args[0]);
 			var b = se._checkForLink(args[1]);
-			Q.Promise.all([a,b]).then(function(values){
+			var c = se._checkForLink(args[2]);
+			var d = se._checkForLink(args[3]);
+			Q.Promise.all([a,b,c,d]).then(function(values){
 				var fieldName = values[0];
 				var property = values[1];
+				var associatedLookupEntityName = values[2]||"";
+				var associatedLookupProperty = values[3]||"";
+				
+				var makeRESTcall = function(/*passedResolve*/){
+					if(associatedLookupEntityName != ""){
+						property = "_"+property+"_value"
+					}
+					se.retrieveSingleEA([entity,id,property]).then(function(data){
+						//TODO: prepare for multiple properties
+						var result = data[property];
+						if(associatedLookupEntityName != ""){
+							se.retrieveSingleEA([associatedLookupEntityName,result,associatedLookupProperty]).then(function(data){
+								var trueResult = data[associatedLookupProperty];
+								var lookupObj = [];
+								lookupObj[0] = {};
+								lookupObj[0].id = "{"+result+"}";
+								lookupObj[0].name = trueResult;
+								lookupObj[0].entityType = associatedLookupEntityName;
+								resolve(lookupObj);
+							});
+						}else{
+							resolve(result);
+						}
+					});
+				}
+				
 				console.log("getting value of property: "+property+" from lookup field: "+fieldName);
 				var val = Xrm.Page.getAttribute(fieldName).getValue() || "";
 				if(val != ""){
-					if(typeof(val[0].keyValues)!=="undefined"){
-						if(typeof(val[0].keyValues)==="string"){
-							var parsedKeyValues = JSON.parse(val[0].keyValues);
-							var propertyValue = parsedKeyValues[property] || parsedKeyValues[property+"_Value"];
-							if(propertyValue == undefined){
-								var id = val[0].id.replace(/{|}/g,"");
-								var entity = val[0].entityType;
-								retrieveSingleEA([entity,id,property]).then(function(data){
-									var result = data[property];
-									resolve(result);
-								});
-							}else{
-								resolve(propertyValue.value);
-							}
-						}else if(typeof(val[0].keyValues)==="object"){
-							var propertyValue = val[0].keyValues[property] || val[0].keyValues[property+"_Value"];
-							if(propertyValue == undefined){
-								var id = val[0].id.replace(/{|}/g,"");
-								var entity = val[0].entityType;
-								retrieveSingleEA([entity,id,property]).then(function(data){
-									var result = data[property];
-									resolve(result);
-								});
-							}else{
-								resolve(propertyValue.value);
-							}
-						}
+					if(val[0][property] != undefined){
+						resolve(val[0][property]);
 					}else{
-						//rest call to get the data attribute
 						var id = val[0].id.replace(/{|}/g,"");
 						var entity = val[0].entityType;
-						retrieveSingleEA([entity,id,property]).then(function(data){
-							var result = data[property];
-							resolve(result);
-						});
+						if(typeof(val[0].keyValues)!=="undefined"){
+							if(typeof(val[0].keyValues)==="string"){
+								var parsedKeyValues = JSON.parse(val[0].keyValues);
+								var propertyValue = parsedKeyValues[property] || parsedKeyValues[property+"_Value"];
+								if(propertyValue == undefined){
+									makeRESTcall();
+								}else{
+									resolve(propertyValue.value);
+								}
+							}else if(typeof(val[0].keyValues)==="object"){
+								var propertyValue = val[0].keyValues[property] || val[0].keyValues[property+"_Value"];
+								if(propertyValue == undefined){
+									makeRESTcall();
+								}else{
+									resolve(propertyValue.value);
+								}
+							}
+						}else{
+							//rest call to get the data attribute
+							makeRESTcall();
+						}
 					}
 				}else{
 					resolve(val);
@@ -506,14 +527,19 @@ window.ScriptEditor = function(config,$,Q)	{
 			Q.Promise.all([a,b,c]).then(function(values){
 				var entity = values[0];
 				var id = values[1];
-				var property = values[2];
+				var property = (values[2]||"").split(",");
 				$.ajax({
 					type: "GET",
 					contentType: "application/json; charset=utf-8",
 					datatype: "json",
-					url: _buildServerUrl(entity,id,[property]),
+					url: _buildServerUrl(entity,id,property),
 					beforeSend: function (XMLHttpRequest) {
+						//XMLHttpRequest.setRequestHeader("Accept", "application/json");
+						XMLHttpRequest.setRequestHeader("OData-MaxVersion", "4.0");
+						XMLHttpRequest.setRequestHeader("OData-Version", "4.0");
 						XMLHttpRequest.setRequestHeader("Accept", "application/json");
+						XMLHttpRequest.setRequestHeader("Prefer", "odata.include-annotations=\"OData.Community.Display.V1.FormattedValue\"");
+
 					},
 					success: function (data, textStatus, XmlHttpRequest) {
 						resolve(data);
