@@ -95,6 +95,75 @@ window.ScriptEditor = function(config,$,Q)	{
 	}
 	
 	/// <summary>
+	/// Procces String statement
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	operator {String} [join,substring,trim,...]
+	/// @args[1]	:	array of string values {String,Link}["val1,{link:2},val3"]
+	/// @args[2]	:	parameter1 {String,Number,Link,Anything}
+	/// @args[3]	:	parameter2 {String,number,Link,Anything}
+	/// </param>
+	var proccesStringStatement = function(args){	//UNFINISHED
+		var se = this;
+
+		return new Q.Promise(function(resolve,reject){
+			var a = args[0];
+			/**process second argument of string values - check all for link and resolve value**/
+			var b = args[1].split(",");
+			var c = [];
+			for(var i =0; i<b.length;i++){
+				c.push(se._checkForLink(b[i]));
+			}
+			var prom = function(arr){
+				return new Q.Promise(function(res,rej){
+					Q.Promise.all(arr).then(function(vals){
+						res(vals);
+					})
+				})
+			}
+			var f = prom(c);
+			/***/
+			//var b = se._checkForLink(args[1]);
+			var d = se._checkForLink(args[2]);
+			var e = se._checkForLink(args[3]);
+			Q.Promise.all([f,d,e]).then(function(values){
+				debugger;
+				var strings = values[0];
+				var par1 = values[1];
+				var par2 = values[2];
+				var result = "";
+				resolve(result);
+			});
+		});
+	}
+	
+	/// <summary>
+	/// join Strings function
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	separator {String,Link}
+	/// @args[1]	:	string1 {String,Number,Link,Anything}
+	/// @args[2]	:	string2 {String,number,Link,Anything}
+	/// </param>
+	var concatStrings = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			var c = se._checkForLink(args[2]);
+			Q.Promise.all([a,b,c]).then(function(values){
+				var separator = values[0];
+				var string1 = values[1];
+				var string2 = values[2];
+				
+				var result = string1.concat(separator,string2);
+				
+				resolve(result);
+			});
+		});
+	}
+	
+	/// <summary>
 	/// Relay value from argument to return value
 	/// </summary>
 	/// <param name="args" type="array" mayBeNull="false" optional="false" >
@@ -658,7 +727,9 @@ window.ScriptEditor = function(config,$,Q)	{
 		saveRecord			:	saveRecord,
 		assign				:	assign,
 		createDialog		:	createDialog,
+		proccesStringStatement:	proccesStringStatement,
 		proccesMathStatement:	proccesMathStatement,
+		concatStrings		:	concatStrings,
 		relayValue			:	relayValue,
 		setFormFieldColor	:	setFormFieldColor
 	};
