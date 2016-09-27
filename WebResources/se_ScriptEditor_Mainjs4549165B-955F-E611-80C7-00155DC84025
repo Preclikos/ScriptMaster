@@ -11,6 +11,44 @@ window.ScriptEditor = function(config,$,Q)	{
 		}
 	}
 	
+	var _constructEntityName = function(entity){	//VERIFY name logic!
+		var name = entity;
+		var lastLetter = name[name.length-1];
+		switch(lastLetter){
+			case "s":
+				name = name+"es";
+				break;
+			case "y":
+				name = name.slice(0,-1)+"ies";
+				break;
+			default:
+				name = name+"s";
+				break;
+		}
+		return name;
+	}
+	var _constructSelectQuery = function(select){
+		var selectQuery = "$select="
+		
+		for(var i=0;i<select.length;i++){
+			selectQuery += select[i];
+			if(i!=select.length-1){
+				selectQuery += ",";
+			}
+		}
+		return selectQuery;
+	}
+	var _constructFilterQuery = function(filter){
+		var filterQuery = "$filter=";
+		for(var i=0; i<filter.length;i++){
+			filterQuery += filter[i][0]+" "+filter[i][1]+" "+filter[i][2];
+			if(i!=filter.length-1){
+				filterQuery += " and "; //TODO: make universal in future
+			}
+		}
+		return filterQuery;
+	}
+	
 	var _buildServerUrl = function(entity,id,select,filter){
 		// var entity = args[0];
 		// var id = args[1];
@@ -22,22 +60,29 @@ window.ScriptEditor = function(config,$,Q)	{
 		if(parseFloat(version)>=8){
 			returnURL = clientURL+"/api/data/v"+version+"/";
 			if(entity){
-				returnURL += entity.toLowerCase()+"s";
-				if(id){
+				var entityName = _constructEntityName(entity);
+				returnURL += entityName;
+				if(id!=""){
 					returnURL += "("+id+")"
-					if(select[0]!=""){
-						returnURL += "?$select="
-						for(var i=0;i<select.length;i++){
-							returnURL += select[i];
-							if(i!=select.length-1){
-								returnURL += ",";
-							}
-						}
-					}
+				}
+				if(select[0]!="" || filter[0]!=""){
+					returnURL += "?";
+				}
+				if(select[0]!=""){
+					returnURL += _constructSelectQuery(select);
+					returnURL += "&";
+				}
+				if(filter && filter[0]!=""){
+					returnURL += _constructFilterQuery(filter);
+					returnURL += "&";
 				}
 			}
 		}else{
 			returnURL = clientURL+"/"
+		}
+		//remove last empty '&'
+		if(returnURL[returnURL.length-1]=="&"){
+			returnURL = returnURL.slice(0,-1);
 		}
 		return returnURL;
 		//TODO: finish this
@@ -230,6 +275,11 @@ window.ScriptEditor = function(config,$,Q)	{
 	/// @args[2] : associated lookup entity name {String,Link}
 	/// @args[3] : associated lookup property/ies name {String,Link}["propName"]|["propName1,propName2,propName3"]
 	/// </param>
+	/// <note>
+	/// no multiple properties yet
+	/// if only args[0-1] => returns single property value
+	///	if args[0-3] => returns lookup object, args[3] is expected to be name of id field of args[2]
+	/// </note>
 	var getFormLookupValue = function(args){
 		var se = this;
 		return new Q.Promise(function(resolve,reject){
@@ -243,6 +293,14 @@ window.ScriptEditor = function(config,$,Q)	{
 				var associatedLookupEntityName = values[2]||"";
 				var associatedLookupProperty = values[3]||"";
 				
+				var createLookupObject = function(l_Id,l_Name,l_EntityType){
+					var lookupObject = [];
+					lookupObject[0] = {};
+					lookupObject[0].id = "{"+l_Id+"}";
+					lookupObject[0].name = l_Name;
+					lookupObject[0].entityType = l_EntityType;
+					return lookupObject;
+				}
 				var makeRESTcall = function(/*passedResolve*/){
 					if(associatedLookupEntityName != ""){
 						property = "_"+property+"_value"
@@ -253,11 +311,7 @@ window.ScriptEditor = function(config,$,Q)	{
 						if(associatedLookupEntityName != ""){
 							se.retrieveSingleEA([associatedLookupEntityName,result,associatedLookupProperty]).then(function(data){
 								var trueResult = data[associatedLookupProperty];
-								var lookupObj = [];
-								lookupObj[0] = {};
-								lookupObj[0].id = "{"+result+"}";
-								lookupObj[0].name = trueResult;
-								lookupObj[0].entityType = associatedLookupEntityName;
+								var lookupObj = createLookupObject(result,trueResult,associatedLookupEntityName);
 								resolve(lookupObj);
 							});
 						}else{
@@ -269,27 +323,28 @@ window.ScriptEditor = function(config,$,Q)	{
 				console.log("getting value of property: "+property+" from lookup field: "+fieldName);
 				var val = Xrm.Page.getAttribute(fieldName).getValue() || "";
 				if(val != ""){
-					if(val[0][property] != undefined){
+					if(val[0][property] != undefined && associatedLookupEntityName == ""){
 						resolve(val[0][property]);
 					}else{
 						var id = val[0].id.replace(/{|}/g,"");
 						var entity = val[0].entityType;
 						if(typeof(val[0].keyValues)!=="undefined"){
+							var keyValues = val[0].keyValues;
 							if(typeof(val[0].keyValues)==="string"){
-								var parsedKeyValues = JSON.parse(val[0].keyValues);
-								var propertyValue = parsedKeyValues[property] || parsedKeyValues[property+"_Value"];
-								if(propertyValue == undefined){
-									makeRESTcall();
+								keyValues = JSON.parse(val[0].keyValues);
+							}
+							var propertyValue = keyValues[property] || keyValues[property+"_Value"];
+							if(propertyValue == undefined){
+								makeRESTcall();
+							}else{
+							/****/
+								if(associatedLookupEntityName != ""){
+									var lookupObj = createLookupObject(id,propertyValue.value,associatedLookupEntityName);
+									resolve(lookupObj);
 								}else{
 									resolve(propertyValue.value);
 								}
-							}else if(typeof(val[0].keyValues)==="object"){
-								var propertyValue = val[0].keyValues[property] || val[0].keyValues[property+"_Value"];
-								if(propertyValue == undefined){
-									makeRESTcall();
-								}else{
-									resolve(propertyValue.value);
-								}
+							/****/
 							}
 						}else{
 							//rest call to get the data attribute
@@ -299,6 +354,64 @@ window.ScriptEditor = function(config,$,Q)	{
 				}else{
 					resolve(val);
 				}
+			});
+		});
+	}
+	
+	/// <summary>
+	/// Gets from entity through REST call, returns complete restCall result
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0] : ! unique ID !
+	/// @args[1] : entity name {String,Link}
+	/// @args[2] : select property/ies name {String,Link} "propName"|"propName1,propName2,propName3"
+	/// @args[3] : filter/s {Nested Array+Link,Nested Array+String} [["name","eq",{"link":0}],"and",["name2","eq","value"]]
+	/// </param>
+	var getRestData = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var uniqueID = args[0];
+			var a = se._checkForLink(args[1]);
+			var b = se._checkForLink(args[2]);
+			var c = args[3]||se._checkForLink("");
+			/** process filter args***/
+			var mapFilter = function(filterItem){
+				return Q.all(filterItem.map(function(item){
+					return se._checkForLink(item);
+				}))
+			}
+			var processFilter = function(arr){
+				return new Q.Promise(function(res,rej){
+					Q.Promise.all(arr).then(function(vals){
+						res(vals);
+					})
+				})
+			}
+			/*****/
+			if(c!=""){
+				var processedFilter = [];
+				for(var i =0;i<c.length;i++){
+					processedFilter.push(mapFilter(c[i]));
+				}
+				c = processFilter(processedFilter);
+			}
+			
+			Q.Promise.all([a,b,c]).then(function(values){
+				var entityName = values[0];
+				var select = (values[1]||"").split(",");
+				var filter = values[2]||"";
+				var url = se._buildServerUrl(entityName,"",select,filter);
+				console.log("getting rest data of entity: "+entityName+" query url: "+url);
+				//uniqueID change
+				//check if already called
+				if(se.cachedCalls[uniqueID+url]){
+					resolve(se.cachedCalls[uniqueID+url]);
+				}
+				
+				se.RestODataGetPromise(url).then(function(data){
+					se.cachedCalls[uniqueID+url] = data;
+					resolve(data);
+				});
 			});
 		});
 	}
@@ -329,6 +442,56 @@ window.ScriptEditor = function(config,$,Q)	{
 			});
 		});
 	}
+
+    /// <summary>
+    /// Sets field value in current form with data from Rest call
+    /// </summary>
+    /// <param name="args" type="array" mayBeNull="false" optional="false" >
+    /// @args[0]	:	field name {String,Link}
+    /// @args[1]	:	retrieved property name {String,Link}	//id for lookup
+	/// @args[2]	:	retrieved property name {String,Link}	//name for lookup
+    /// @args[3]	:	field value {String,Link}
+    /// </param>
+    //TODO: sort out number of results
+    var setRestData = function (args) {
+        var se = this;
+        return new Q.Promise(function (resolve,reject) {
+            var a = se._checkForLink(args[0]);
+            var b = se._checkForLink(args[1]);
+            var c = se._checkForLink(args[2]);
+			var d = se._checkForLink(args[3]);
+			var e = se._checkForLink(args[4]);
+
+            Q.Promise.all([a,b,c,d,e]).then(function (values) {
+                var fieldName = values[0];
+                var propertyName = values[1]||""; //id in case of lookup
+				var lookupName = values[2]||"";
+				var lookupEntityType = values[3]||"";
+                var retrievedData = values[4];
+				
+				var newValue = "";
+				var field = Xrm.Page.getAttribute(fieldName);
+				if(field.getAttributeType()=="lookup"){
+					newValue = [];
+					newValue[0] = {};
+					newValue[0].id = "{"+retrievedData[propertyName]||retrievedData.value[0][propertyName]+"}";
+					newValue[0].name = retrievedData[lookupName]||retrievedData.value[0][lookupName];
+					newValue[0].entityType = lookupEntityType;
+					
+				}else{
+					newValue = retrievedData[propertyName]||(retrievedData.value.length!=0?retrievedData.value[0][propertyName]:null)||null;
+				}
+				
+                console.log("setting field: "+fieldName+" to value: "+newValue+" from retrieved property: "+propertyName);
+                field.setValue(newValue);
+                if(field.getSubmitMode()==="never"){
+                    field.setSubmitMode("always");
+                }
+                //field(fieldName).fireOnChange();
+                resolve(true);
+            })
+        })
+    }
 	
 	/// <summary>
 	/// Sets field required level in current form
@@ -586,6 +749,32 @@ window.ScriptEditor = function(config,$,Q)	{
 		});
 	};
 	
+	var RestODataGetPromise = function(url){
+		var se = this;
+		return new Q.Promise(function(resolve, reject){
+			$.ajax({
+				type: "GET",
+				contentType: "application/json; charset=utf-8",
+				datatype: "json",
+				url: url,
+				beforeSend: function (XMLHttpRequest) {
+					XMLHttpRequest.setRequestHeader("OData-MaxVersion", "4.0");
+					XMLHttpRequest.setRequestHeader("OData-Version", "4.0");
+					XMLHttpRequest.setRequestHeader("Accept", "application/json");
+					XMLHttpRequest.setRequestHeader("Prefer", "odata.include-annotations=\"OData.Community.Display.V1.FormattedValue\"");
+				},
+				success: function (data, textStatus, XmlHttpRequest) {
+					resolve(data);
+				},
+				error: function (XmlHttpRequest, textStatus, errorObject) {
+					console.error(textStatus, errorObject);
+					console.log("OData Execution Error Occurred");
+					reject(this);
+				}
+			});
+		});
+	};
+	
 	var retrieveSingleEA = function(args){
 		var se = this;
 		return new Q.Promise(function(resolve,reject){
@@ -615,7 +804,7 @@ window.ScriptEditor = function(config,$,Q)	{
 					},
 					error: function (XmlHttpRequest, textStatus, errorObject) {
 						console.error(textStatus, errorObject);
-						alert("OData Execution Error Occurred");
+						console.log("OData Execution Error Occurred");
 						reject(this);
 					}
 				});
@@ -692,7 +881,8 @@ window.ScriptEditor = function(config,$,Q)	{
 		}
 		var current = config.NodeDataArray.filter(function(n){return n.key === key})[0];
 		
-		se[current.fName](current.args).then(function(data){
+		se[current.fName](current.args)
+		.then(function(data){
 		//TODO: check current.useReturnValue == true ? data as args : default
 			if(current.nextKey != null){
 				if(current.nextKey.length == 2){
@@ -707,20 +897,29 @@ window.ScriptEditor = function(config,$,Q)	{
 			}else{
 				return Q.Promise.resolve();
 			}
-		});
+		})
+		.catch(function (err) {
+			//console.log(err);
+			debugger;
+			window.top.console.log(err);
+		})
 	}
 	
 	return {
 		_config				:	_config,
 		_checkForLink		:	_checkForLink,
+		_constructEntityName:	_constructEntityName,
 		_buildServerUrl		:	_buildServerUrl,
 		_generateDialog_message: _generateDialog_message,
 		_generateDialog_confirm: _generateDialog_confirm,
 		getFormFieldValue	:	getFormFieldValue,
 		getFormLookupValue	:	getFormLookupValue,
+		getRestData			:	getRestData,
 		setFormFieldValue	:	setFormFieldValue,
+        setRestData         :   setRestData,
 		setFormFieldRequiredLevel: setFormFieldRequiredLevel,
 		retrieveSingleEA	:	retrieveSingleEA,
+		RestODataGetPromise	:	RestODataGetPromise,
 		proccesIfStatement	:	proccesIfStatement,
 		runFunctionByName	:	runFunctionByName,
 		run					:	run,
@@ -731,6 +930,7 @@ window.ScriptEditor = function(config,$,Q)	{
 		proccesMathStatement:	proccesMathStatement,
 		concatStrings		:	concatStrings,
 		relayValue			:	relayValue,
-		setFormFieldColor	:	setFormFieldColor
+		setFormFieldColor	:	setFormFieldColor,
+		cachedCalls			:	{}
 	};
 };
