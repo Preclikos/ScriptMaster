@@ -339,8 +339,11 @@ window.ScriptEditor = function(config,$,Q)	{
 							}else{
 							/****/
 								if(associatedLookupEntityName != ""){
+									/***wtf wrong ID, correct is not available
 									var lookupObj = createLookupObject(id,propertyValue.value,associatedLookupEntityName);
 									resolve(lookupObj);
+									***/
+									makeRESTcall();
 								}else{
 									resolve(propertyValue.value);
 								}
@@ -365,7 +368,8 @@ window.ScriptEditor = function(config,$,Q)	{
 	/// @args[0] : ! unique ID !
 	/// @args[1] : entity name {String,Link}
 	/// @args[2] : select property/ies name {String,Link} "propName"|"propName1,propName2,propName3"
-	/// @args[3] : filter/s {Nested Array+Link,Nested Array+String} [["name","eq",{"link":0}],"and",["name2","eq","value"]]
+	/// @args[3] : primaryEntityAttribute {String} "propName"
+	/// @args[4] : filter/s {Nested Array+Link,Nested Array+String} [["name","eq",{"link":0}],"and",["name2","eq","value"]]
 	/// </param>
 	var getRestData = function(args){
 		var se = this;
@@ -373,7 +377,8 @@ window.ScriptEditor = function(config,$,Q)	{
 			var uniqueID = args[0];
 			var a = se._checkForLink(args[1]);
 			var b = se._checkForLink(args[2]);
-			var c = args[3]||se._checkForLink("");
+			var c = se._checkForLink(args[3]);
+			var d = args[4]||"";
 			/** process filter args***/
 			var mapFilter = function(filterItem){
 				return Q.all(filterItem.map(function(item){
@@ -388,18 +393,22 @@ window.ScriptEditor = function(config,$,Q)	{
 				})
 			}
 			/*****/
-			if(c!=""){
+			if(d!=""){
 				var processedFilter = [];
-				for(var i =0;i<c.length;i++){
-					processedFilter.push(mapFilter(c[i]));
+				for(var i =0;i<d.length;i++){
+					processedFilter.push(mapFilter(d[i]));
 				}
-				c = processFilter(processedFilter);
+				d = processFilter(processedFilter);
+			}else{
+				d = se._checkForLink("");
 			}
 			
-			Q.Promise.all([a,b,c]).then(function(values){
+			Q.Promise.all([a,b,c,d]).then(function(values){
 				var entityName = values[0];
 				var select = (values[1]||"").split(",");
-				var filter = values[2]||"";
+				var primaryEntityAttribute = values[2]||"";
+				var filter = values[3]||"";
+				
 				var url = se._buildServerUrl(entityName,"",select,filter);
 				console.log("getting rest data of entity: "+entityName+" query url: "+url);
 				//uniqueID change
@@ -409,6 +418,20 @@ window.ScriptEditor = function(config,$,Q)	{
 				}
 				
 				se.RestODataGetPromise(url).then(function(data){
+					//var primaryEntityAttributeVal = data[primaryEntityAttribute]||(data.value.length!=0?data.value[0][primaryEntityAttribute]:null)||null;
+					if(data[primaryEntityAttribute]){
+						data[entityName+"id"] = {
+							"id":data[entityName+"id"],
+							"name":data[primaryEntityAttribute],
+							"entityType":entityName
+						}
+					}else if(data.value.length!=0){
+						data.value[0][entityName+"id"] = {
+							"id":data.value[0][entityName+"id"],
+							"name":data.value[0][primaryEntityAttribute],
+							"entityType":entityName
+						}
+					}
 					se.cachedCalls[uniqueID+url] = data;
 					resolve(data);
 				});
@@ -448,9 +471,8 @@ window.ScriptEditor = function(config,$,Q)	{
     /// </summary>
     /// <param name="args" type="array" mayBeNull="false" optional="false" >
     /// @args[0]	:	field name {String,Link}
-    /// @args[1]	:	retrieved property name {String,Link}	//id for lookup
-	/// @args[2]	:	retrieved property name {String,Link}	//name for lookup
-    /// @args[3]	:	field value {String,Link}
+    /// @args[1]	:	retrieved property name {String,Link}
+    /// @args[2]	:	field value {String,Link}
     /// </param>
     //TODO: sort out number of results
     var setRestData = function (args) {
@@ -459,29 +481,15 @@ window.ScriptEditor = function(config,$,Q)	{
             var a = se._checkForLink(args[0]);
             var b = se._checkForLink(args[1]);
             var c = se._checkForLink(args[2]);
-			var d = se._checkForLink(args[3]);
-			var e = se._checkForLink(args[4]);
 
-            Q.Promise.all([a,b,c,d,e]).then(function (values) {
+            Q.Promise.all([a,b,c]).then(function (values) {
                 var fieldName = values[0];
                 var propertyName = values[1]||""; //id in case of lookup
-				var lookupName = values[2]||"";
-				var lookupEntityType = values[3]||"";
-                var retrievedData = values[4];
+                var retrievedData = values[2];
 				
-				var newValue = "";
 				var field = Xrm.Page.getAttribute(fieldName);
-				if(field.getAttributeType()=="lookup"){
-					newValue = [];
-					newValue[0] = {};
-					newValue[0].id = "{"+retrievedData[propertyName]||retrievedData.value[0][propertyName]+"}";
-					newValue[0].name = retrievedData[lookupName]||retrievedData.value[0][lookupName];
-					newValue[0].entityType = lookupEntityType;
-					
-				}else{
-					newValue = retrievedData[propertyName]||(retrievedData.value.length!=0?retrievedData.value[0][propertyName]:null)||null;
-				}
-				
+				//single result OR first
+				var newValue = retrievedData[propertyName]||(retrievedData.value.length!=0?retrievedData.value[0][propertyName]:null)||null;
                 console.log("setting field: "+fieldName+" to value: "+newValue+" from retrieved property: "+propertyName);
                 field.setValue(newValue);
                 if(field.getSubmitMode()==="never"){
