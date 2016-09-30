@@ -649,6 +649,20 @@ window.ScriptEditor = function(config,$,Q)	{
 	}
 	
 	/// <summary>
+	/// Procces IF END statement
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args	:	none
+	/// </param>
+	var proccesIfEndStatement = function(args){
+		var se = this;
+
+		return new Q.Promise(function(resolve,reject){
+			resolve(true);
+		})
+	}
+	
+	/// <summary>
 	/// Create Dialog
 	/// </summary>
 	/// <param name="args" type="array" mayBeNull="false" optional="false" >
@@ -929,6 +943,7 @@ window.ScriptEditor = function(config,$,Q)	{
 		retrieveSingleEA	:	retrieveSingleEA,
 		RestODataGetPromise	:	RestODataGetPromise,
 		proccesIfStatement	:	proccesIfStatement,
+		proccesIfEndStatement:proccesIfEndStatement,
 		runFunctionByName	:	runFunctionByName,
 		run					:	run,
 		saveRecord			:	saveRecord,
