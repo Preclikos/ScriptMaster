@@ -420,17 +420,17 @@ window.ScriptEditor = function(config,$,Q)	{
 				se.RestODataGetPromise(url).then(function(data){
 					//var primaryEntityAttributeVal = data[primaryEntityAttribute]||(data.value.length!=0?data.value[0][primaryEntityAttribute]:null)||null;
 					if(data[primaryEntityAttribute]){
-						data[entityName+"id"] = {
+						data[entityName+"id"] = [{
 							"id":data[entityName+"id"],
 							"name":data[primaryEntityAttribute],
 							"entityType":entityName
-						}
+						}]
 					}else if(data.value.length!=0){
-						data.value[0][entityName+"id"] = {
+						data.value[0][entityName+"id"] = [{
 							"id":data.value[0][entityName+"id"],
 							"name":data.value[0][primaryEntityAttribute],
 							"entityType":entityName
-						}
+						}]
 					}
 					se.cachedCalls[uniqueID+url] = data;
 					resolve(data);
@@ -655,6 +655,20 @@ window.ScriptEditor = function(config,$,Q)	{
 	/// @args	:	none
 	/// </param>
 	var proccesIfEndStatement = function(args){
+		var se = this;
+
+		return new Q.Promise(function(resolve,reject){
+			resolve(true);
+		})
+	}
+	
+	/// <summary>
+	/// Empty start that does nothing
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args	:	none
+	/// </param>
+	var start = function(args){
 		var se = this;
 
 		return new Q.Promise(function(resolve,reject){
@@ -944,6 +958,7 @@ window.ScriptEditor = function(config,$,Q)	{
 		RestODataGetPromise	:	RestODataGetPromise,
 		proccesIfStatement	:	proccesIfStatement,
 		proccesIfEndStatement:proccesIfEndStatement,
+		start				:	start,
 		runFunctionByName	:	runFunctionByName,
 		run					:	run,
 		saveRecord			:	saveRecord,
