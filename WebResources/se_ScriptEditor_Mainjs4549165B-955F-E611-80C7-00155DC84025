@@ -142,8 +142,8 @@ window.ScriptEditor = function(config,$,Q)	{
 			var b = se._checkForLink(args[1]);
 			var c = se._checkForLink(args[2]);
 			Q.Promise.all([b,c]).then(function(values){
-				var left = values[0];
-				var right = values[1];
+				var left = typeof(values[0])=="string"?values[0].replace(",","."):values[0];
+				var right = typeof(values[1])=="string"?values[1].replace(",","."):values[1];
 				console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesMathStatement started<<< input: '"+left+" "+a+" "+right+"'|#|");
 				var result;
 				if(a.length === 1){
@@ -822,7 +822,11 @@ window.ScriptEditor = function(config,$,Q)	{
 		var se = this;
 		//get jQuery, jQueryUI, css...
 		//type = ["confirm","message","form"]
-		se["_generateDialog_"+args[0]](args);
+		console.log("|#|Fn: "+se._config.FunctionName+" >>>start started&ended<<< input: dialogType:'"+args[0]+"'|#|");
+		return se["_generateDialog_"+args[0]](args).then(function(data){
+			console.log("|#|Fn: "+se._config.FunctionName+" >>>createDialog ended<<< result: '"+"success"+"'|#|");
+			return true;
+		});
 	};
 	
 	var _generateDialog_message = function(args){
