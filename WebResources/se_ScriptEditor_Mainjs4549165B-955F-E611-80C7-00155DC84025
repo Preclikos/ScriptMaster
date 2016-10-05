@@ -144,33 +144,34 @@ window.ScriptEditor = function(config,$,Q)	{
 			Q.Promise.all([b,c]).then(function(values){
 				var left = values[0];
 				var right = values[1];
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesMathStatement started<<< input: '"+left+" "+a+" "+right+"'|#|");
 				var result;
 				if(a.length === 1){
 					switch(a) {
 						case "+":
 							result = left + right;
-							console.log("returning proccesMathStatement result: "+result);
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesMathStatement ended<<< result: "+result+"|#|");
 							resolve(result);
 							break;
 						case "-":
 							result = left - right;
-							console.log("returning proccesMathStatement result: "+result);
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesMathStatement ended<<< result: "+result+"|#|");
 							resolve(result);
 							break;
 						case "*":
 							result = left * right;
-							console.log("returning proccesMathStatement result: "+result);
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesMathStatement ended<<< result: "+result+"|#|");
 							resolve(result);
 							break;
 						case "/":
 							result = left / right;
-							console.log("returning proccesMathStatement result: "+result);
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesMathStatement ended<<< result: "+result+"|#|");
 							resolve(result);
 							break;
 					}
 				}else if(a.length > 1){
 					result = Math[a](left,right);
-					console.log("returning proccesMathStatement: "+a+" with result: "+result);
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesMathStatement ended<<< result: "+result+"|#|");
 					resolve(result);
 				}
 			});
@@ -238,9 +239,9 @@ window.ScriptEditor = function(config,$,Q)	{
 				var separator = values[0];
 				var string1 = values[1];
 				var string2 = values[2];
-				
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>concatStrings started<<< input: '"+string1+" "+separator+" "+string2+"'|#|");
 				var result = string1.concat(separator,string2);
-				
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>concatStrings ended<<< result: '"+result+"'|#|");
 				resolve(result);
 			});
 		});
@@ -257,12 +258,14 @@ window.ScriptEditor = function(config,$,Q)	{
 		return new Q.Promise(function(resolve,reject){
 			var a = se._checkForLink(args[0]);
 			Q.Promise.all([a]).then(function(values){
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>relayValue started<<< input: '"+values[0]+"'|#|");
 				var retVal = "";
 				if(isNaN(parseFloat(values[0]))){
 					retVal = values[0];
 				}else{
 					retVal = parseFloat(values[0]);
 				}
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>relayValue ended<<< result: '"+retVal+"'|#|");
 				resolve(retVal);
 			});
 		});
@@ -280,7 +283,7 @@ window.ScriptEditor = function(config,$,Q)	{
 			var a = se._checkForLink(args[0]);
 			Q.Promise.all([a]).then(function(values){
 				var fieldName = values[0]
-				console.log("getting value of field: "+fieldName);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormFieldValue started<<< input: fieldName: '"+fieldName+"'|#|");
 				var val = "";
 				switch(Xrm.Page.getAttribute(fieldName).getAttributeType()){
 					case "lookup":
@@ -299,6 +302,7 @@ window.ScriptEditor = function(config,$,Q)	{
 					val = Xrm.Page.getAttribute(fieldName).getValue() || "";
 						break;
 				}
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormFieldValue ended<<< result: "+val+"|#|");
 				resolve(val);
 			});
 		});
@@ -330,7 +334,7 @@ window.ScriptEditor = function(config,$,Q)	{
 				var property = values[1];
 				var associatedLookupEntityName = values[2]||"";
 				var associatedLookupProperty = values[3]||"";
-				
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue started<<< input: fieldName: '"+fieldName+"' property: '"+property+"' associatedLookupEntityName: '"+associatedLookupEntityName+"' associatedLookupProperty: '"+associatedLookupProperty+"'|#|");
 				var createLookupObject = function(l_Id,l_Name,l_EntityType){
 					var lookupObject = [];
 					lookupObject[0] = {};
@@ -350,18 +354,20 @@ window.ScriptEditor = function(config,$,Q)	{
 							se.retrieveSingleEA([associatedLookupEntityName,result,associatedLookupProperty]).then(function(data){
 								var trueResult = data[associatedLookupProperty];
 								var lookupObj = createLookupObject(result,trueResult,associatedLookupEntityName);
+								console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+lookupObj+"|#|");
 								resolve(lookupObj);
 							});
 						}else{
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+result+"|#|");
 							resolve(result);
 						}
 					});
 				}
 				
-				console.log("getting value of property: "+property+" from lookup field: "+fieldName);
 				var val = Xrm.Page.getAttribute(fieldName).getValue() || "";
 				if(val != ""){
 					if(val[0][property] != undefined && associatedLookupEntityName == ""){
+						console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+val[0][property]+"|#|");
 						resolve(val[0][property]);
 					}else{
 						var id = val[0].id.replace(/{|}/g,"");
@@ -383,6 +389,7 @@ window.ScriptEditor = function(config,$,Q)	{
 									***/
 									makeRESTcall();
 								}else{
+									console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+propertyValue.value+"|#|");
 									resolve(propertyValue.value);
 								}
 							/****/
@@ -393,6 +400,7 @@ window.ScriptEditor = function(config,$,Q)	{
 						}
 					}
 				}else{
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>getFormLookupValue ended<<< result: "+val+"|#|");
 					resolve(val);
 				}
 			});
@@ -461,32 +469,35 @@ window.ScriptEditor = function(config,$,Q)	{
 				}
 				
 				var url = se._buildServerUrl(entityName,"",select,filter,orderByObj);
-				console.log("getting rest data of entity: "+entityName+" query url: "+url);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>getRestData started<<< input: url:'"+url+"'|#|");
 				//uniqueID change
 				//check if already called
 				if(se.cachedCalls[uniqueID+url]){
-					console.log("getRestData - using cached result");
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>getRestData ended<<< result: '"+"using cached result"+"'|#|");
 					resolve(se.cachedCalls[uniqueID+url]);
-				}
+				}else{
 				
-				se.RestODataGetPromise(url).then(function(data){
-					//var primaryEntityAttributeVal = data[primaryEntityAttribute]||(data.value.length!=0?data.value[0][primaryEntityAttribute]:null)||null;
-					if(data[primaryEntityAttribute]){
-						data[entityName+"id"] = [{
-							"id":data[entityName+"id"],
-							"name":data[primaryEntityAttribute],
-							"entityType":entityName
-						}]
-					}else if(data.value.length!=0){
-						data.value[0][entityName+"id"] = [{
-							"id":data.value[0][entityName+"id"],
-							"name":data.value[0][primaryEntityAttribute],
-							"entityType":entityName
-						}]
-					}
-					se.cachedCalls[uniqueID+url] = data;
-					resolve(data);
-				});
+					se.RestODataGetPromise(url).then(function(data){
+						//var primaryEntityAttributeVal = data[primaryEntityAttribute]||(data.value.length!=0?data.value[0][primaryEntityAttribute]:null)||null;
+						if(data[primaryEntityAttribute]){
+							data[entityName+"id"] = [{
+								"id":data[entityName+"id"],
+								"name":data[primaryEntityAttribute],
+								"entityType":entityName
+							}]
+						}else if(data.value.length!=0){
+							data.value[0][entityName+"id"] = [{
+								"id":data.value[0][entityName+"id"],
+								"name":data.value[0][primaryEntityAttribute],
+								"entityType":entityName
+							}]
+						}
+						se.cachedCalls[uniqueID+url] = data;
+						console.log("|#|Fn: "+se._config.FunctionName+" >>>getRestData ended<<< result: '"+"success"+"'|#|");
+						resolve(data);
+					});
+				
+				}
 			});
 		});
 	}
@@ -508,14 +519,14 @@ window.ScriptEditor = function(config,$,Q)	{
 				var restData = values[1];
 				
 				var result = null;
-				console.log("===starting resultRestData of: "+property+"");
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>resultRestData started<<< input: property:'"+property+"'|#|");
 				if(restData.value&&restData.value.length!=0){
 					result = restData.value[0][property];
 				}else{
-					console.log("===resultRestData ended with result: NO DATA");
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>resultRestData<<< '"+"NO DATA"+"'|#|");
 					//resolve(null);
 				}
-				console.log("===resultRestData ended with result: "+result);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>resultRestData ended<<< result: '"+result+"'|#|");
 				resolve(result);
 			})
 		})
@@ -538,16 +549,16 @@ window.ScriptEditor = function(config,$,Q)	{
 				var restData = values[1];
 				
 				var result = 0;
-				console.log("===starting SUM of: "+property+"");
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>sumRestData started<<< input: property:'"+property+"'|#|");
 				if(restData.value&&restData.value.length!=0){
 					for(var i = 0;i<restData.value.length;i++){
 						result += restData.value[i][property];
 					}
 				}else{
-					console.log("===SUM ended with result: NO DATA");
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>sumRestData<<< '"+"NO DATA"+"'|#|");
 					//resolve(0);
 				}
-				console.log("===SUM ended with result: "+result);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>sumRestData ended<<< result: '"+result+"'|#|");
 				resolve(result);
 			})
 		})
@@ -569,12 +580,13 @@ window.ScriptEditor = function(config,$,Q)	{
 			Q.Promise.all([a,b]).then(function(values){
 				var fieldName = values[0];
 				var newValue = values[1];
-				console.log("setting field: "+fieldName+" to value: "+newValue);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldValue started<<< input: fieldName:'"+fieldName+"' newValue: '"+newValue+"'|#|");
 				Xrm.Page.getAttribute(fieldName).setValue(newValue);
 				if(Xrm.Page.getAttribute(fieldName).getSubmitMode()==="never"){
 					Xrm.Page.getAttribute(fieldName).setSubmitMode("always");
 				}
 				//Xrm.Page.getAttribute(fieldName).fireOnChange();
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldValue ended<<< result: '"+"success"+"'|#|");
 				resolve(true);
 			});
 		});
@@ -604,12 +616,13 @@ window.ScriptEditor = function(config,$,Q)	{
 				var field = Xrm.Page.getAttribute(fieldName);
 				//single result OR first
 				var newValue = retrievedData[propertyName]||(retrievedData.value.length!=0?retrievedData.value[0][propertyName]:null)||null;
-                console.log("setting field: "+fieldName+" to value: "+newValue+" from retrieved property: "+propertyName);
+                console.log("|#|Fn: "+se._config.FunctionName+" >>>setRestData started<<< input: fieldName:'"+fieldName+"' newValue: '"+newValue+"' fromRetrievedProperty: '"+propertyName+"'|#|");
                 field.setValue(newValue);
                 if(field.getSubmitMode()==="never"){
                     field.setSubmitMode("always");
                 }
                 //field(fieldName).fireOnChange();
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setRestData ended<<< result: '"+"success"+"'|#|");
                 resolve(true);
             })
         })
@@ -630,8 +643,9 @@ window.ScriptEditor = function(config,$,Q)	{
 			Q.Promise.all([a,b]).then(function(values){
 				var fieldName = values[0];
 				var requiredLevel = values[1];
-				console.log("setting field: "+fieldName+" to required level: "+requiredLevel);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldRequiredLevel started<<< input: fieldName:'"+fieldName+"' requiredLevel: '"+requiredLevel+"'|#|");
 				Xrm.Page.getAttribute(fieldName).setRequiredLevel(requiredLevel);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldRequiredLevel ended<<< result: '"+"success"+"'|#|");
 				resolve(true);
 			});
 		});
@@ -651,8 +665,9 @@ window.ScriptEditor = function(config,$,Q)	{
 			var a = se._checkForLink(args[0]);
 			Q.Promise.all([a]).then(function(values){
 				var saveCommand = values[0];
-				console.log("saving record with command: "+saveCommand);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>saveRecord started<<< input: saveCommand:'"+saveCommand+"'|#|");
 				Xrm.Page.data.entity.save(saveCommand);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>saveRecord ended<<< result: '"+"success"+"'|#|");
 				resolve(true);
 			});
 		});
@@ -676,84 +691,85 @@ window.ScriptEditor = function(config,$,Q)	{
 			Q.Promise.all([b,c]).then(function(values){
 				var left = values[0];
 				var right = values[1];
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement started<<< input: '"+left+" "+a+" "+right+"'|#|");
 				switch(a) {
 					case "==":
 						if(left == right){
-							console.log("returning proccesIfStatement result: TRUE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
 							resolve(true);
 							break;
 						}else{
-							console.log("returning proccesIfStatement result: FALSE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
 							resolve(false);
 							break;
 						}
 					case "===":
 						if(left === right){
-							console.log("returning proccesIfStatement result: TRUE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
 							resolve(true);
 							break;
 						}else{
-							console.log("returning proccesIfStatement result: FALSE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
 							resolve(false);
 							break;
 						}
 					case "!=":
 						if(left != right){
-							console.log("returning proccesIfStatement result: TRUE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
 							resolve(true);
 							break;
 						}else{
-							console.log("returning proccesIfStatement result: FALSE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
 							resolve(false);
 							break;
 						}
 					case "!==":
 						if(left !== right){
-							console.log("returning proccesIfStatement result: TRUE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
 							resolve(true);
 							break;
 						}else{
-							console.log("returning proccesIfStatement result: FALSE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
 							resolve(false);
 							break;
 						}
 					case ">":
 						if(left > right){
-							console.log("returning proccesIfStatement result: TRUE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
 							resolve(true);
 							break;
 						}else{
-							console.log("returning proccesIfStatement result: FALSE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
 							resolve(false);
 							break;
 						}
 					case ">=":
 						if(left >= right){
-							console.log("returning proccesIfStatement result: TRUE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
 							resolve(true);
 							break;
 						}else{
-							console.log("returning proccesIfStatement result: FALSE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
 							resolve(false);
 							break;
 						}
 					case "<":
 						if(left < right){
-							console.log("returning proccesIfStatement result: TRUE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
 							resolve(true);
 							break;
 						}else{
-							console.log("returning proccesIfStatement result: FALSE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
 							resolve(false);
 							break;
 						}
 					case "<=":
 						if(left <= right){
-							console.log("returning proccesIfStatement result: TRUE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"TRUE"+"'|#|");
 							resolve(true);
 							break;
 						}else{
-							console.log("returning proccesIfStatement result: FALSE");
+							console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfStatement ended<<< result: '"+"FALSE"+"'|#|");
 							resolve(false);
 							break;
 						}
@@ -772,6 +788,7 @@ window.ScriptEditor = function(config,$,Q)	{
 		var se = this;
 
 		return new Q.Promise(function(resolve,reject){
+			console.log("|#|Fn: "+se._config.FunctionName+" >>>proccesIfEndStatement started&ended<<< result: '"+"success"+"'|#|");
 			resolve(true);
 		})
 	}
@@ -786,6 +803,7 @@ window.ScriptEditor = function(config,$,Q)	{
 		var se = this;
 
 		return new Q.Promise(function(resolve,reject){
+			console.log("|#|Fn: "+se._config.FunctionName+" >>>start started&ended<<< result: '"+"success"+"'|#|");
 			resolve(true);
 		})
 	}
@@ -967,10 +985,11 @@ window.ScriptEditor = function(config,$,Q)	{
 		var a = args[0];
 		
 		return new Q.Promise(function(resolve,reject){
-			
+			console.log("|#|Fn: "+se._config.FunctionName+" >>>runFunctionByName started<<< input: '"+a+"'|#|");
 			var fcfg = window.ScriptEditor.loadedConfigs.filter(function(c){return c._config.FunctionName===a});
 			if(fcfg.length===1){
 				fcfg[0].run(0).then(function(data){
+					console.log("|#|Fn: "+se._config.FunctionName+" >>>runFunctionByName ended<<< result: '"+"success"+"'|#|");
 					resolve(true);
 				});
 			}
@@ -992,8 +1011,9 @@ window.ScriptEditor = function(config,$,Q)	{
 			Q.Promise.all([a,b]).then(function(values){
 				var fieldName = values[0];
 				var color = values[1];
-				console.log("setting field: "+fieldName+" to color: "+color);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldColor started<<< input: fieldName: '"+a+"' color: '"+color+"'|#|");
 				$("*[data-attributename='"+fieldName+"']",window.parent.document)[0].style.background = color;
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldColor ended<<< result: '"+"success"+"'|#|");
 				resolve(true);
 			});
 		});
