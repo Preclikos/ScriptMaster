@@ -40,16 +40,50 @@ window.ScriptEditor = function(config,$,Q)	{
 	}
 	var _constructFilterQuery = function(filter){
 		var filterQuery = "$filter=";
-		for(var i=0; i<filter.length;i++){
-			filterQuery += filter[i][0]+" "+filter[i][1]+" "+filter[i][2];
-			if(i!=filter.length-1){
-				filterQuery += " and "; //TODO: make universal in future
+		/***group bit***/
+		//$filter=(bla eq bla and bla eq bla or (bla eq bla and bla eq bla))	//group 0,1		bla eq bla)and(
+		//filterQuery += "(";
+		//var groupCounter = 0;
+		for(var i=0; i<filter.length;i++){ //TODO: nested filters...
+			if(i==0 /*&& parseInt(filter[i][3]) != parseInt(filter[i+1][3])*/){
+				filterQuery += "(";
 			}
+			
+			filterQuery += filter[i][0]+" "+filter[i][1]+" "+filter[i][4];
+			
+			if(i!=0 && i!=filter.length-1 && parseInt(filter[i][3]) != parseInt(filter[i+1][3])){
+				filterQuery += ")";
+			}
+			
+			if(i!=filter.length-1){
+				filterQuery += " "+filter[i][2]+" ";
+			}
+			
+			if(i!=0 && i!=filter.length-1 && parseInt(filter[i][3]) < parseInt(filter[i+1][3])){
+				filterQuery += "(";
+			}
+			
+			if(i==filter.length-1){
+				//if(parseInt(filter[i][3]) != parseInt(filter[i-1][3]) && parseInt(filter[i][3]) != 0){
+					filterQuery += ")";
+				//}
+			}
+			
 		}
+		//filterQuery += ")";
 		return filterQuery;
 	}
 	
-	var _buildServerUrl = function(entity,id,select,filter){
+	var _constructOrderByQuery = function(orderByObj){
+		var orderQuery = "$orderby=";
+		orderQuery += orderByObj.prop;
+		orderQuery += " ";
+		orderQuery += orderByObj.sign;
+		
+		return orderQuery;
+	}
+	
+	var _buildServerUrl = function(entity,id,select,filter,orderByObj){
 		// var entity = args[0];
 		// var id = args[1];
 		// var property = args[2];
@@ -74,6 +108,10 @@ window.ScriptEditor = function(config,$,Q)	{
 				}
 				if(filter && filter[0]!=""){
 					returnURL += _constructFilterQuery(filter);
+					returnURL += "&";
+				}
+				if(orderByObj && orderByObj!=""){
+					returnURL += _constructOrderByQuery(orderByObj);
 					returnURL += "&";
 				}
 			}
@@ -369,7 +407,9 @@ window.ScriptEditor = function(config,$,Q)	{
 	/// @args[1] : entity name {String,Link}
 	/// @args[2] : select property/ies name {String,Link} "propName"|"propName1,propName2,propName3"
 	/// @args[3] : primaryEntityAttribute {String} "propName"
-	/// @args[4] : filter/s {Nested Array+Link,Nested Array+String} [["name","eq",{"link":0}],"and",["name2","eq","value"]]
+	/// @args[4] : orderBy property {String} "propName"
+	/// @args[5] : orderBy sign {String} "asc"
+	/// @args[6] : filter/s {Nested Array+Link,Nested Array+String} [["name","eq",{"link":0}],"and",["name2","eq","value"]]
 	/// </param>
 	var getRestData = function(args){
 		var se = this;
@@ -378,7 +418,9 @@ window.ScriptEditor = function(config,$,Q)	{
 			var a = se._checkForLink(args[1]);
 			var b = se._checkForLink(args[2]);
 			var c = se._checkForLink(args[3]);
-			var d = args[4]||"";
+			var e = se._checkForLink(args[4]);
+			var f = se._checkForLink(args[5]);
+			var d = args[6]||"";
 			/** process filter args***/
 			var mapFilter = function(filterItem){
 				return Q.all(filterItem.map(function(item){
@@ -403,17 +445,27 @@ window.ScriptEditor = function(config,$,Q)	{
 				d = se._checkForLink("");
 			}
 			
-			Q.Promise.all([a,b,c,d]).then(function(values){
+			Q.Promise.all([a,b,c,d,e,f]).then(function(values){
 				var entityName = values[0];
 				var select = (values[1]||"").split(",");
 				var primaryEntityAttribute = values[2]||"";
 				var filter = values[3]||"";
+				var orderByProp = values[4]||"";
+				var orderBySign = values[5]||"";
+				var orderByObj = "";
+				if(orderByProp!=""&&orderBySign!=""){
+					orderByObj = {
+						prop:orderByProp,
+						sign:orderBySign
+					}
+				}
 				
-				var url = se._buildServerUrl(entityName,"",select,filter);
+				var url = se._buildServerUrl(entityName,"",select,filter,orderByObj);
 				console.log("getting rest data of entity: "+entityName+" query url: "+url);
 				//uniqueID change
 				//check if already called
 				if(se.cachedCalls[uniqueID+url]){
+					console.log("getRestData - using cached result");
 					resolve(se.cachedCalls[uniqueID+url]);
 				}
 				
@@ -437,6 +489,68 @@ window.ScriptEditor = function(config,$,Q)	{
 				});
 			});
 		});
+	}
+	
+	/// <summary>
+	/// get property from getRESTdata[0] - first returned obj.
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	property name {String,Link}
+	/// @args[1]	:	getRestDatal link {Link}
+	/// </param>
+	var resultRestData = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			Q.Promise.all([a,b]).then(function(values){
+				var property = values[0];
+				var restData = values[1];
+				
+				var result = null;
+				console.log("===starting resultRestData of: "+property+"");
+				if(restData.value&&restData.value.length!=0){
+					result = restData.value[0][property];
+				}else{
+					console.log("===resultRestData ended with result: NO DATA");
+					//resolve(null);
+				}
+				console.log("===resultRestData ended with result: "+result);
+				resolve(result);
+			})
+		})
+	}
+	
+	/// <summary>
+	/// SUM property from getRESTdata
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	property name {String,Link}
+	/// @args[1]	:	getRestDatal link {Link}
+	/// </param>
+	var sumRestData = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			Q.Promise.all([a,b]).then(function(values){
+				var property = values[0];
+				var restData = values[1];
+				
+				var result = 0;
+				console.log("===starting SUM of: "+property+"");
+				if(restData.value&&restData.value.length!=0){
+					for(var i = 0;i<restData.value.length;i++){
+						result += restData.value[i][property];
+					}
+				}else{
+					console.log("===SUM ended with result: NO DATA");
+					//resolve(0);
+				}
+				console.log("===SUM ended with result: "+result);
+				resolve(result);
+			})
+		})
 	}
 	
 	/// <summary>
@@ -849,12 +963,18 @@ window.ScriptEditor = function(config,$,Q)	{
 	}
 	
 	var runFunctionByName = function(args){
+		var se = this;
 		var a = args[0];
-		var fcfg = window.ScriptEditor.loadedConfigs.filter(function(c){return c._config.FunctionName===a});
-		if(fcfg.length===1){
-			fcfg[0].run(0);
-		}
-		return new Q.Promise.resolve(true);
+		
+		return new Q.Promise(function(resolve,reject){
+			
+			var fcfg = window.ScriptEditor.loadedConfigs.filter(function(c){return c._config.FunctionName===a});
+			if(fcfg.length===1){
+				fcfg[0].run(0).then(function(data){
+					resolve(true);
+				});
+			}
+		})
 	}
 	
 	/// <summary>
@@ -909,36 +1029,44 @@ window.ScriptEditor = function(config,$,Q)	{
 		////$("*[data-attributename='"+fieldName+"']")
 		//
 	}
+	var _runInternal = function(ctx,KEY){
+		var se = ctx;
+		return new Q.Promise(function(resolve,reject){
+			function recurse(key){
+				var current = config.NodeDataArray.filter(function(n){return n.key === key})[0];
+				se[current.fName](current.args)
+				.then(function(data){
+					if(current.nextKey != null){
+						if(current.nextKey.length == 2){
+							if(data === true){
+								recurse(current.nextKey[0])
+							}else{
+								recurse(current.nextKey[1])
+							}
+						}else if(current.nextKey.length == 1){ //only other possibility 
+							recurse(current.nextKey[0])
+						}
+					}else{
+						//console.log("=*=== Function: "+se._config.FunctionName+" Finished ===*=");
+						resolve(true); // Done with processing, trigger the final promise
+					}
+				})
+			}
+			recurse(KEY);
+		})
+	}
 	
 	var run = function (key){
 		var se = this;
 		if(!key){
 			key = 0;
 		}
-		var current = config.NodeDataArray.filter(function(n){return n.key === key})[0];
-		
-		se[current.fName](current.args)
-		.then(function(data){
-		//TODO: check current.useReturnValue == true ? data as args : default
-			if(current.nextKey != null){
-				if(current.nextKey.length == 2){
-					if(data === true){
-						se.run(current.nextKey[0]);
-					}else{
-						se.run(current.nextKey[1]);
-					}
-				}else if(current.nextKey.length == 1){ //only other possibility 
-					se.run(current.nextKey[0]);
-				}
-			}else{
-				return Q.Promise.resolve();
-			}
-		})
-		.catch(function (err) {
-			//console.log(err);
-			debugger;
-			window.top.console.log(err);
-		})
+		console.log("|#####| Function: "+se._config.FunctionName+" Started |#####|");
+		return _runInternal(se, key)
+			.then(function(data){
+				console.log("|#####| Function: "+se._config.FunctionName+" Finished |#####|");
+				return true;
+			})
 	}
 	
 	return {
@@ -951,6 +1079,8 @@ window.ScriptEditor = function(config,$,Q)	{
 		getFormFieldValue	:	getFormFieldValue,
 		getFormLookupValue	:	getFormLookupValue,
 		getRestData			:	getRestData,
+		resultRestData		:	resultRestData,
+		sumRestData			:	sumRestData,
 		setFormFieldValue	:	setFormFieldValue,
         setRestData         :   setRestData,
 		setFormFieldRequiredLevel: setFormFieldRequiredLevel,
