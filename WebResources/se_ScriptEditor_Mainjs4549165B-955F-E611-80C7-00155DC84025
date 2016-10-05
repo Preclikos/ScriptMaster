@@ -476,7 +476,7 @@ window.ScriptEditor = function(config,$,Q)	{
 					console.log("|#|Fn: "+se._config.FunctionName+" >>>getRestData ended<<< result: '"+"using cached result"+"'|#|");
 					resolve(se.cachedCalls[uniqueID+url]);
 				}else{
-				
+					se.cachedCalls = {}; //clean all previous cachedCalls, for all your twisted needs...
 					se.RestODataGetPromise(url).then(function(data){
 						//var primaryEntityAttributeVal = data[primaryEntityAttribute]||(data.value.length!=0?data.value[0][primaryEntityAttribute]:null)||null;
 						if(data[primaryEntityAttribute]){
