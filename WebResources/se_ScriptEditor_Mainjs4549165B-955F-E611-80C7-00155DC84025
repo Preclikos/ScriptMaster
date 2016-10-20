@@ -1027,6 +1027,33 @@ window.ScriptEditor = function(config,$,Q)	{
 		});
 	};
 	
+	/// <summary>
+	/// Sets field background color in current form
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// @args[0]	:	field name {String,Link}
+	/// @args[1]	:	disabled status {String,Link}
+	/// </param>
+	var setFormFieldDisabled = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			var b = se._checkForLink(args[1]);
+			Q.Promise.all([a,b]).then(function(values){
+				var fieldName = values[0];
+				var disabled = values[1];
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldDisabled started<<< input: fieldName: '"+a+"' disabled: '"+disabled+"'|#|");
+				if(disabled == "true"){
+					Xrm.Page.ui.controls.get(fieldName).setDisabled(true);
+				}else{
+					Xrm.Page.ui.controls.get(fieldName).setDisabled(false);
+				}
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>setFormFieldDisabled ended<<< result: '"+"success"+"'|#|");
+				resolve(true);
+			});
+		});
+	};
+	
 	var assign = function(){
 		var se = this;
 		//assign to correct event/field/button/whatever...
@@ -1127,6 +1154,7 @@ window.ScriptEditor = function(config,$,Q)	{
 		concatStrings		:	concatStrings,
 		relayValue			:	relayValue,
 		setFormFieldColor	:	setFormFieldColor,
+		setFormFieldDisabled:	setFormFieldDisabled,
 		cachedCalls			:	{}
 	};
 };
