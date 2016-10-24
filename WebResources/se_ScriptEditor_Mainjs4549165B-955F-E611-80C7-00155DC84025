@@ -309,6 +309,31 @@ window.ScriptEditor = function(config,$,Q)	{
 	}
 	
 	/// <summary>
+	/// Gets currrent user lookupObj
+	/// </summary>
+	/// <param name="args" type="array" mayBeNull="false" optional="false" >
+	/// </param>
+	var getCurrentUser = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var userID = Xrm.Page.context.getUserId();
+			var userName = Xrm.Page.context.getUserName();
+			var entityType = "systemuser";
+			if(userID != null && userName != null){
+				var LO = [];
+				LO[0] = {};
+				LO[0].id = userID;
+				LO[0].name = userName;
+				LO[0].entityType = entityType;
+				
+				resolve(LO);
+			}else{
+				resolve("");
+			}
+		});
+	}
+	
+	/// <summary>
 	/// Gets field lookup property value in current form
 	/// </summary>
 	/// <param name="args" type="array" mayBeNull="false" optional="false" >
@@ -1132,6 +1157,7 @@ window.ScriptEditor = function(config,$,Q)	{
 		_generateDialog_message: _generateDialog_message,
 		_generateDialog_confirm: _generateDialog_confirm,
 		getFormFieldValue	:	getFormFieldValue,
+		getCurrentUser		:	getCurrentUser,
 		getFormLookupValue	:	getFormLookupValue,
 		getRestData			:	getRestData,
 		resultRestData		:	resultRestData,
