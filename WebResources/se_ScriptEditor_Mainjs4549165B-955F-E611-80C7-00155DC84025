@@ -853,8 +853,8 @@ window.ScriptEditor = function(config,$,Q)	{
 		//type = ["confirm","message","form"]
 		console.log("|#|Fn: "+se._config.FunctionName+" >>>start started&ended<<< input: dialogType:'"+args[0]+"'|#|");
 		return se["_generateDialog_"+args[0]](args).then(function(data){
-			console.log("|#|Fn: "+se._config.FunctionName+" >>>createDialog ended<<< result: '"+"success"+"'|#|");
-			return true;
+			console.log("|#|Fn: "+se._config.FunctionName+" >>>createDialog ended<<< result: '"+data+"'|#|");
+			return data;
 		});
 	};
 	
