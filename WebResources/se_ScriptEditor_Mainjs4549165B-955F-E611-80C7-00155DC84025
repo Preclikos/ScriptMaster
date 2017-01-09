@@ -553,6 +553,7 @@ window.ScriptEditor = function(config,$,Q)	{
 					result = restData.value[0][property];
 				}else{
 					console.log("|#|Fn: "+se._config.FunctionName+" >>>resultRestData<<< '"+"NO DATA"+"'|#|");
+					result = ""; //set result to Empty String
 					//resolve(null);
 				}
 				console.log("|#|Fn: "+se._config.FunctionName+" >>>resultRestData ended<<< result: '"+result+"'|#|");
