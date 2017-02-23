@@ -1080,6 +1080,20 @@ window.ScriptEditor = function(config,$,Q)	{
 		});
 	};
 	
+	var closeOpportunity = function(args){
+		var se = this;
+		return new Q.Promise(function(resolve,reject){
+			var a = se._checkForLink(args[0]);
+			Q.Promise.all([a]).then(function(values){
+				var won = (values[0]=='true');
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>closeOpportunity started<<< input: won: '"+won+"'|#|");
+				Mscrm.OpportunityCommandActions.opportunityClose(won);
+				console.log("|#|Fn: "+se._config.FunctionName+" >>>ended started<<< result: won: '"+"success"+"'|#|");
+				resolve(true);
+			})
+		});
+	}
+	
 	var assign = function(){
 		var se = this;
 		//assign to correct event/field/button/whatever...
@@ -1182,6 +1196,7 @@ window.ScriptEditor = function(config,$,Q)	{
 		relayValue			:	relayValue,
 		setFormFieldColor	:	setFormFieldColor,
 		setFormFieldDisabled:	setFormFieldDisabled,
+		closeOpportunity	:	closeOpportunity,
 		cachedCalls			:	{}
 	};
 };
